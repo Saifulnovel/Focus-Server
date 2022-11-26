@@ -30,9 +30,34 @@ const client = new MongoClient(uri, {
 
 async function run() {
     try {
-        const userCollections = client.db("focus").collection("userCollection");
+      const userCollections = client.db("focus").collection("userCollection");
+      const productsCategory = client
+        .db("focus")
+        .collection("categorylist");
+      const productCollections = client.db("focus").collection("products");
       console.log(`mongodb server is working `);
+     
       
+      
+      // category list 
+      app.get("/category", async (req, res) => {
+        const query = {};
+        const options = await productsCategory.find(query).toArray();
+        res.send(options);
+      });
+
+
+      //  products API by category ID
+      app.get("/category/:id", async (req, res) => {
+        const id = parseInt(req.params.id);
+        const query = { categoryId: id };
+        console.log(query);
+        const matching = await productCollections.find(query).toArray();
+        res.send(matching);
+      });
+
+
+      // user add to db 
       app.put('/user/:email', async (req, res) => {
         const email = req.params.email
         const user = req.body
