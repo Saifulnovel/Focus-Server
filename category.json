@@ -1,0 +1,15 @@
+[
+    {
+        "categoryId":"1",
+        "categoryName":"Film"
+    },
+    {
+        "categoryId":"2",
+        "categoryName":"Movie"
+    },
+    {
+        "categoryId":"3",
+        "categoryName":"Digital"
+    }
+
+]
