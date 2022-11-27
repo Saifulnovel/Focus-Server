@@ -35,6 +35,8 @@ async function run() {
         .db("focus")
         .collection("categorylist");
       const productCollections = client.db("focus").collection("products");
+
+      const orderCollection = client.db("focus").collection("orders")
       console.log(`mongodb server is working `);
      
       
@@ -51,7 +53,7 @@ async function run() {
       app.get("/category/:id", async (req, res) => {
         const id = parseInt(req.params.id);
         const query = { categoryId: id };
-        console.log(query);
+       
         const matching = await productCollections.find(query).toArray();
         res.send(matching);
       });
@@ -68,7 +70,7 @@ async function run() {
 
         }
         const result = await userCollections.updateOne(filter, updateDoc, options)
-        console.log(result)
+        
 
         // const token = jwt.sign(user, process.env.JWT_TOKEN, {
         //   expiresIn: '1d',
@@ -76,6 +78,24 @@ async function run() {
         // console.log(token);
         res.send({result})
             
+      })
+
+      // booking
+
+      app.post('/orders', async (req, res) => {
+        const order = req.body
+        const result = await orderCollection.insertOne(order)
+        res.send(result)
+      });
+
+      // my orders
+
+      app.get('/myorders', async (req, res) => {
+        const email = req.query.email;
+        
+        const query = { email: email }
+        const myorders = await orderCollection.find(query).toArray();
+        res.send(myorders);
       })
 
 
