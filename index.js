@@ -2,6 +2,7 @@ const express = require('express');
 
 const cors = require('cors');
 const { MongoClient, ServerApiVersion } = require("mongodb");
+const jwt = require("jsonwebtoken");
 
 const port = process.env.PORT || 5000;
 
@@ -27,6 +28,15 @@ const client = new MongoClient(uri, {
   useUnifiedTopology: true,
   serverApi: ServerApiVersion.v1,
 });
+
+function veriFyJwt (req, res, next){
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).send('unauthorized access');
+
+  }
+  const token = authHeader.splite('')[1]
+}
 
 async function run() {
     try {
@@ -78,6 +88,19 @@ async function run() {
         // console.log(token);
         res.send({result})
             
+      })
+
+      // send token 
+      app.get('/jwt', async (req, res) => {
+        const email = req.query.email;
+        const query = { email: email };
+        const user = await userCollections.findOne(query)
+        if (user) {
+          const token = jwt.sign({ email }, process.env.ACCESS_TOKEN, { expiresIn: '1d' });
+          return res.send({accessToken: token})
+        }
+       
+        res.status(403).send({accessToken:''})
       })
 
       // booking
