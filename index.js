@@ -9,7 +9,7 @@ const port = process.env.PORT || 5000;
 const app = express();
 require('dotenv').config()
 
-const sellers = require('./sellers.json')
+
 
 
 // middleware
@@ -36,6 +36,13 @@ function veriFyJwt (req, res, next){
 
   }
   const token = authHeader.splite('')[1]
+  jwt.verify(token, process.env.ACCESS_TOKEN, function (err, decoded) {
+    if (err) {
+      return res.status(403).send({message: 'forbidden access'})
+    }
+    req.decoded = decoded;
+    next
+  })
 }
 
 async function run() {
@@ -113,9 +120,13 @@ async function run() {
 
       // my orders
 
-      app.get('/myorders', async (req, res) => {
+      app.get('/myorders', veriFyJwt, async (req, res) => {
         const email = req.query.email;
-        
+        const decodedEmail = req.decoded.email;
+
+        if (email !== decodedEmail) {
+          return res.status(403).send({message: 'forbidden access'})
+        }
         const query = { email: email }
         const myorders = await orderCollection.find(query).toArray();
         res.send(myorders);
