@@ -45,127 +45,215 @@ function verifyJWT (req, res, next){
   })
 }
 
+
+
 async function run() {
     try {
       const userCollections = client.db("focus").collection("userCollection");
-      const productsCategory = client
-        .db("focus")
-        .collection("categorylist");
+      const productsCategory = client.db("focus").collection("categorylist");
       const productCollections = client.db("focus").collection("products");
 
-      const orderCollection = client.db("focus").collection("orders")
+      const orderCollection = client.db("focus").collection("orders");
       console.log(`mongodb server is working `);
-     
-      
-      
-      // category list 
+
+      // admin verification
+
+      async function verifyAdmin(req, res, next) {
+        const decodedEmail = req.decoded.email;
+        const query = { email: decodedEmail };
+        const user = await userCollections.findOne(query);
+        if (user?.role !== "admin") {
+          return res.status(403).send({ message: "forbidden access" });
+        }
+        // console.log(decodedEmail);
+        next();
+      }
+
+      // category list
       app.get("/category", async (req, res) => {
         const query = {};
         const options = await productsCategory.find(query).toArray();
         res.send(options);
       });
 
-
       //  products API by category ID
       app.get("/category/:id", async (req, res) => {
-        const id = parseInt(req.params.id);
+        const id = req.params.id;
         const query = { categoryId: id };
-       
+
         const matching = await productCollections.find(query).toArray();
         res.send(matching);
       });
 
+      // all products
 
-      // user add to db 
-      app.put('/user/:email', async (req, res) => {
-        const email = req.params.email
-        const user = req.body
+      app.get("/products", async (req, res) => {
+        const query = {};
+        const result = await productCollections.find(query).toArray();
+        res.send(result);
+      });
+
+      // Add product API
+
+      app.post("/products", async (req, res) => {
+        const product = req.body;
+        console.log(product);
+        const result = await productCollections.insertOne(product);
+        res.send(result);
+      });
+
+      // user add to db
+      app.put("/user/:email", async (req, res) => {
+        const email = req.params.email;
+        const user = req.body;
         const filter = { email: email };
         const options = { upsert: true };
         const updateDoc = {
           $set: user,
-
-        }
-        const result = await userCollections.updateOne(filter, updateDoc, options)
-        
+        };
+        const result = await userCollections.updateOne(
+          filter,
+          updateDoc,
+          options
+        );
 
         // const token = jwt.sign(user, process.env.JWT_TOKEN, {
         //   expiresIn: '1d',
         // })
         // console.log(token);
-        res.send({result})
-            
-      })
+        res.send({ result });
+      });
 
       // all users
 
-      app.get('/users', async (req, res) => {
+      app.get("/users", async (req, res) => {
         const query = {};
         const users = await userCollections.find(query).toArray();
         res.send(users);
-      })
+      });
 
-      app.put('/users/admin/:id', verifyJWT, async (req, res) => {
-        const decodedEmail = req.decoded.email;
-        const query = { email: decodedEmail };
-        const user = await userCollections.findOne(query)
-        if (user?.role !== 'admin') {
-          return res.status(403).send({message: 'forbidden access'})
+      // delete users
+      app.delete(
+        "/users/:id([0-9a-fA-F]{24})",
+        verifyJWT,
+        verifyAdmin,
+        async (req, res) => {
+          const id = req.params.id;
+
+          const filter = { _id: ObjectId(id) };
+          const result = await userCollections.deleteOne(filter);
+          res.send(result);
         }
+      );
+       app.get("/users/buyers",  async (req, res) => {
+         const role = req.params.role;
+         const query = { role: role };
+         const buyer = await userCollections.find(query).toArray();
+         res.send(buyer);
+       });
+
+      // seller list
+
+      app.get("/users/sellers", verifyJWT, verifyAdmin, async (req, res) => {
+        const role = req.params.role;
+        const query = { role: role };
+        const seller = await userCollections.find(query).toArray();
+        res.send(seller);
+      });
+
+      // verify a seller
+
+      app.put("/users/verify/:id", verifyJWT, verifyAdmin, async (req, res) => {
         const id = req.params.id;
-        const filter = { _id: ObjectId(id) }
+        const filter = { _id: ObjectId(id) };
         const options = { upsert: true };
         const updateDoc = {
           $set: {
-            role: 'admin'
-          }
-        }
-        const result = await userCollections.updateOne(filter, updateDoc, options);
+            verified: true,
+          },
+        };
+        const result = await userCollections.updateOne(
+          filter,
+          updateDoc,
+          options
+        );
         res.send(result);
+      });
 
+      // admin routes
 
-      })
+      app.get("/users/admin/:email", async (req, res) => {
+        const email = req.params.email;
+        const query = { email: email };
+        const user = await userCollections.findOne(query);
 
-      // send token 
-      app.get('/jwt', async (req, res) => {
+        res.send({ isAdmin: user?.role === "admin" });
+      });
+
+      // admin making
+
+      app.put("/users/admin/:id", verifyJWT, async (req, res) => {
+        const decodedEmail = req.decoded.email;
+        const query = { email: decodedEmail };
+        const user = await userCollections.findOne(query);
+        if (user?.role !== "admin") {
+          return res.status(403).send({ message: "forbidden access" });
+        }
+        const id = req.params.id;
+        const filter = { _id: ObjectId(id) };
+        const options = { upsert: true };
+        const updateDoc = {
+          $set: {
+            role: "admin",
+          },
+        };
+        const result = await userCollections.updateOne(
+          filter,
+          updateDoc,
+          options
+        );
+        res.send(result);
+      });
+
+      // send token
+
+      app.get("/jwt", async (req, res) => {
         const email = req.query.email;
         const query = { email: email };
-        const user = await userCollections.findOne(query)
-        console.log(user);
+        const user = await userCollections.findOne(query);
+
         if (user) {
-          const token = jwt.sign({ email }, process.env.ACCESS_TOKEN, { expiresIn: '1d' });
-          return res.send({accessToken: token})
+          const token = jwt.sign({ email }, process.env.ACCESS_TOKEN, {
+            expiresIn: "10d",
+          });
+          return res.send({ accessToken: token });
         }
-       
-        res.status(403).send({accessToken:''})
-      })
+
+        res.status(403).send({ accessToken: "" });
+      });
 
       // booking
 
-      app.post('/orders', async (req, res) => {
-        const order = req.body
-        const result = await orderCollection.insertOne(order)
-        res.send(result)
+      app.post("/orders", async (req, res) => {
+        const order = req.body;
+        const result = await orderCollection.insertOne(order);
+        res.send(result);
       });
 
       // my orders
 
-      app.get('/myorders',verifyJWT,  async (req, res) => {
+      app.get("/myorders", verifyJWT, async (req, res) => {
         const email = req.query.email;
-        
+
         const decodedEmail = req.decoded.email;
 
         if (email !== decodedEmail) {
-          return res.status(403).send({message: 'forbidden access'})
+          return res.status(403).send({ message: "forbidden access" });
         }
-        const query = { email: email }
+        const query = { email: email };
         const myorders = await orderCollection.find(query).toArray();
         res.send(myorders);
-      })
-
-
-
-
+      });
     }
     finally {
         
