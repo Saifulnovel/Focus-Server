@@ -52,6 +52,7 @@ async function run() {
       const userCollections = client.db("focus").collection("userCollection");
       const productsCategory = client.db("focus").collection("categorylist");
       const productCollections = client.db("focus").collection("products");
+      const advertiseCollections = client.db("focus").collection("advertiseCollection")
 
       const orderCollection = client.db("focus").collection("orders");
       console.log(`mongodb server is working `);
@@ -145,12 +146,12 @@ async function run() {
           res.send(result);
         }
       );
-       app.get("/users/buyers",  async (req, res) => {
-         const role = req.params.role;
-         const query = { role: role };
-         const buyer = await userCollections.find(query).toArray();
-         res.send(buyer);
-       });
+      app.get("/users/buyers", async (req, res) => {
+        const role = req.params.role;
+        const query = { role: role };
+        const buyer = await userCollections.find(query).toArray();
+        res.send(buyer);
+      });
 
       // seller list
 
@@ -254,6 +255,51 @@ async function run() {
         const myorders = await orderCollection.find(query).toArray();
         res.send(myorders);
       });
+
+      // products added by seller
+
+      
+          app.get("/product", async (req, res) => {
+            const email = req.query.email;
+            const query = { email: email };
+            const myproduct = await productCollections.find(query).toArray();
+            res.send(myproduct);
+          });
+
+      // advertisement section
+
+
+      app.post("/seller/advertise", verifyJWT, async (req, res) => {
+        const advProduct = req.body;
+       
+        const result = await advertiseCollections.insertOne(advProduct);
+        res.send(result);
+      });
+
+
+      // get advertised Product
+
+      
+      app.get("/seller/advertise", async (req, res) => {
+        const query = {};
+        const result = await advertiseCollections.find(query).toArray();
+        res.send(result);
+      });
+
+      // advertise deteting
+
+
+      app.delete(
+        "/seller/advertise/:id([0-9a-fA-F]{24})",
+        verifyJWT,
+        async (req, res) => {
+          const id = req.params.id;
+          // console.log(id);
+          const query = { _id: ObjectId(id) };
+          const result = await advertiseCollections.deleteOne(query);
+          res.send(result);
+        }
+      );
     }
     finally {
         
